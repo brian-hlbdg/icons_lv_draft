@@ -1,23 +1,10 @@
 import Config
 
-# Configure your database
-#
-# The MIX_TEST_PARTITION environment variable can be used
-# to provide built-in test partitioning in CI environment.
-# Run `mix help test` for more information.
-config :icons_lv_draft, IconsLvDraft.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "icons_lv_draft_test#{System.get_env("MIX_TEST_PARTITION")}",
-  pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2
-
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :icons_lv_draft, IconsLvDraftWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: "lkux1+uT4LJ6enNmS/iksaAGeewA+mqYSzx+imQl60rXoUKNyj8xk0d9YXkVSj+p",
+  secret_key_base: "0kPBnWA3c4Z4bRq7F77grbrRR0N7ai7G1YB0/K8qqZygV/CqlRSB8yhUQbk3ID2j",
   server: false
 
 # In test we don't send emails.

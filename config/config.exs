@@ -8,8 +8,18 @@
 import Config
 
 config :icons_lv_draft,
-  ecto_repos: [IconsLvDraft.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime],
+  # Default colors
+  default_base_color: "currentColor",
+  default_active_color: nil,
+  default_warning_color: nil,
+
+  # Available categories
+  categories: [
+    %{id: "solid", name: "Solid", description: "Filled style icons"},
+    %{id: "outline", name: "Outline", description: "Line style icons"},
+    %{id: "transportation", name: "Transportation", description: "Vehicle and transport icons"}
+  ]
 
 # Configures the endpoint
 config :icons_lv_draft, IconsLvDraftWeb.Endpoint,
@@ -20,7 +30,7 @@ config :icons_lv_draft, IconsLvDraftWeb.Endpoint,
     layout: false
   ],
   pubsub_server: IconsLvDraft.PubSub,
-  live_view: [signing_salt: "0NLiR27P"]
+  live_view: [signing_salt: "iXEbj3wC"]
 
 # Configures the mailer
 #

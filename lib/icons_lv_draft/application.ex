@@ -9,7 +9,6 @@ defmodule IconsLvDraft.Application do
   def start(_type, _args) do
     children = [
       IconsLvDraftWeb.Telemetry,
-      IconsLvDraft.Repo,
       {DNSCluster, query: Application.get_env(:icons_lv_draft, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: IconsLvDraft.PubSub},
       # Start the Finch HTTP client for sending emails
@@ -19,6 +18,9 @@ defmodule IconsLvDraft.Application do
       # Start to serve requests, typically the last entry
       IconsLvDraftWeb.Endpoint
     ]
+
+    # Initialize the IconsLv library
+    # IconsLvDraft.init()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options

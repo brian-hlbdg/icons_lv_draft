@@ -1,15 +1,5 @@
 import Config
 
-# Configure your database
-config :icons_lv_draft, IconsLvDraft.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "icons_lv_draft_dev",
-  stacktrace: true,
-  show_sensitive_data_on_connection_error: true,
-  pool_size: 10
-
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #
@@ -23,7 +13,7 @@ config :icons_lv_draft, IconsLvDraftWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
-  secret_key_base: "PwqqUdxPGvOMskNO3px8Pbga0Xm2aSL8r9TDRCxXtWoumrfhr0K4j7/b6XnnjL4s",
+  secret_key_base: "r8oPvzB/UcnmWvPJSNZkU5wPU0k0d1Yuw/13awMaSLTrqod7UJYTa6MfJt5RSn9Y",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:icons_lv_draft, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:icons_lv_draft, ~w(--watch)]}

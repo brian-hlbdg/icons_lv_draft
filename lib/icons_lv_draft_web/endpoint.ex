@@ -7,7 +7,7 @@ defmodule IconsLvDraftWeb.Endpoint do
   @session_options [
     store: :cookie,
     key: "_icons_lv_draft_key",
-    signing_salt: "NgCEIaHw",
+    signing_salt: "QJX/J2+F",
     same_site: "Lax"
   ]
 
@@ -31,7 +31,6 @@ defmodule IconsLvDraftWeb.Endpoint do
     socket "/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket
     plug Phoenix.LiveReloader
     plug Phoenix.CodeReloader
-    plug Phoenix.Ecto.CheckRepoStatus, otp_app: :icons_lv_draft
   end
 
   plug Phoenix.LiveDashboard.RequestLogger,

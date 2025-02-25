@@ -1,15 +1,22 @@
 defmodule IconsLvDraft.MixProject do
   use Mix.Project
 
+  @version "0.1.0"
+  @description "SVG icon library for Phoenix LiveView applications"
+  @source_url "https://github.com/brian-hlbdg/icons_lv_draft"
+
   def project do
     [
       app: :icons_lv_draft,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
+      description: @description,
+      package: package(),
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      docs: docs()
     ]
   end
 
@@ -33,9 +40,6 @@ defmodule IconsLvDraft.MixProject do
   defp deps do
     [
       {:phoenix, "~> 1.7.12"},
-      {:phoenix_ecto, "~> 4.4"},
-      {:ecto_sql, "~> 3.10"},
-      {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 4.0"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 0.20.2"},
@@ -57,7 +61,25 @@ defmodule IconsLvDraft.MixProject do
       {:gettext, "~> 0.20"},
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
+      {:ex_doc, "~> 0.29", only: :dev, runtime: false},
       {:bandit, "~> 1.2"}
+    ]
+  end
+
+  defp package do
+    [
+      maintainers: ["HLBDG"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => @source_url},
+      files: ~w(lib priv .formatter.exs mix.exs README.md LICENSE)
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      extras: ["README.md"],
+      source_url: @source_url
     ]
   end
 
@@ -69,10 +91,7 @@ defmodule IconsLvDraft.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
-      "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
-      "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      setup: ["deps.get", "assets.setup", "assets.build"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind icons_lv_draft", "esbuild icons_lv_draft"],
       "assets.deploy": [

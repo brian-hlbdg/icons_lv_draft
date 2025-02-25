@@ -20,5 +20,5 @@ defmodule IconsLvDraftWeb.Gettext do
 
   See the [Gettext Docs](https://hexdocs.pm/gettext) for detailed usage.
   """
-  use Gettext, otp_app: :icons_lv_draft
+  use Gettext.Backend, otp_app: :icons_lv_draft
 end

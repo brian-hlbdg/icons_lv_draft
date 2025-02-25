@@ -17,7 +17,7 @@ defmodule IconsLvDraftWeb.CoreComponents do
   use Phoenix.Component
 
   alias Phoenix.LiveView.JS
-  import IconsLvDraftWeb.Gettext
+  use Gettext, backend: IconsLvDraftWeb.Gettext
 
   @doc """
   Renders a modal.
@@ -590,15 +590,21 @@ defmodule IconsLvDraftWeb.CoreComponents do
       <.icon name="hero-x-mark-solid" />
       <.icon name="hero-arrow-path" class="ml-1 w-3 h-3 animate-spin" />
   """
+  # Replace the defdelegate line with this:
+
+  # Define attributes first
   attr :name, :string, required: true
   attr :class, :string, default: nil
+  attr :base_color, :string, default: "currentColor"
+  attr :active_color, :string, default: nil
+  attr :warning_color, :string, default: nil
+  attr :rest, :global, include: ~w(aria-hidden aria-label)
 
-  def icon(%{name: "hero-" <> _} = assigns) do
-    ~H"""
-    <span class={[@name, @class]} />
-    """
+  # Then define the function
+  def icon(assigns) do
+    # Forward to the actual implementation
+    IconsLvDraft.Icon.icon(assigns)
   end
-
   ## JS Commands
 
   def show(js \\ %JS{}, selector) do
