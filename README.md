@@ -16,12 +16,12 @@ A comprehensive SVG icon library for Phoenix LiveView applications, with seamles
 
 ## Installation
 
-Add `icons_lv` to your list of dependencies in `mix.exs`:
+Add `icons_lv_draft` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:icons_lv, "~> 0.1.0"}
+    {_:icons_lv_draaft, "~> 0.1.0"}
   ]
 end
 ```

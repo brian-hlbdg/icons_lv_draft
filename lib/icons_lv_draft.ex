@@ -53,7 +53,7 @@ defmodule IconsLvDraft do
     class = Keyword.get(opts, :class, "")
 
     [category, name] = String.split(icon_name, "/", parts: 2)
-    icon_path = Application.app_dir(:icons_lv, "priv/static/icons/#{category}/#{name}.svg")
+    icon_path = Application.app_dir(:icons_lv_draft, "priv/static/icons/#{category}/#{name}.svg")
 
     svg_content = File.read!(icon_path)
     |> process_svg_for_html(base_color, active_color, warning_color, class)

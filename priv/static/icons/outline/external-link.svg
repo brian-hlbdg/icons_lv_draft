@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="16px" height="16px" viewBox="0 0 16 16" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 48.2 (47327) - http://www.bohemiancoding.com/sketch -->
+    <title>Icon/External Link</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <rect id="path-1" x="0" y="0" width="427" height="623"></rect>
+        <filter x="-1.2%" y="-0.6%" width="102.3%" height="101.6%" filterUnits="objectBoundingBox" id="filter-2">
+            <feOffset dx="0" dy="1" in="SourceAlpha" result="shadowOffsetOuter1"></feOffset>
+            <feGaussianBlur stdDeviation="1.5" in="shadowOffsetOuter1" result="shadowBlurOuter1"></feGaussianBlur>
+            <feColorMatrix values="0 0 0 0 0   0 0 0 0 0   0 0 0 0 0  0 0 0 0.2 0" type="matrix" in="shadowBlurOuter1"></feColorMatrix>
+        </filter>
+    </defs>
+    <g id="2.0-::-Residential-Direct-Info-Copy-2" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" transform="translate(-265.000000, -306.000000)">
+        <rect id="Task-Group-Background-Rectangle" fill="#F5F7F8" x="0" y="0" width="1300" height="925"></rect>
+        <g id="RD-Info" transform="translate(24.000000, 86.000000)">
+            <g id="Rectangle">
+                <use fill="black" fill-opacity="1" filter="url(#filter-2)" xlink:href="#path-1"></use>
+                <use fill="#FFFFFF" fill-rule="evenodd" xlink:href="#path-1"></use>
+            </g>
+        </g>
+        <g id="3GTMS-Link" transform="translate(265.000000, 306.000000)" fill="#3DA6FF" fill-rule="nonzero">
+            <g id="Group">
+                <path d="M0.901408451,15.8197183 L13.5211268,15.8197183 C14.0169014,15.8197183 14.4225352,15.4140845 14.4225352,14.9183099 L14.4225352,7.70704225 L12.6197183,7.70704225 L12.6197183,14.0169014 L1.8028169,14.0169014 L1.8028169,3.2 L8.11267606,3.2 L8.11267606,1.3971831 L0.901408451,1.3971831 C0.405633803,1.3971831 0,1.8028169 0,2.29859155 L0,14.9183099 C8.00611533e-16,15.4140845 0.405633803,15.8197183 0.901408451,15.8197183 Z" id="Shape"></path>
+                <polygon id="Shape" points="6.96338028 7.61690141 8.22535211 8.87887324 14.0619718 3.06478873 14.0619718 5.02535211 15.8647887 5.02535211 15.8647887 0 10.8169014 0 10.8169014 1.8028169 12.7774648 1.8028169"></polygon>
+            </g>
+        </g>
+    </g>
+</svg>

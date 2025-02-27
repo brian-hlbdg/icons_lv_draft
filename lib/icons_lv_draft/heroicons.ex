@@ -25,7 +25,7 @@ defmodule IconsLvDraft.Heroicons do
   end
 
   defp import_category(source_path, category) do
-    target_path = Application.app_dir(:icons_lv, "priv/static/icons/#{category}")
+    target_path = Application.app_dir(:icons_lv_draft, "priv/static/icons/#{category}")
 
     # Create the target directory if it doesn't exist
     File.mkdir_p!(target_path)
@@ -62,7 +62,7 @@ defmodule IconsLvDraft.Heroicons do
   end
 
   defp list_category(category) do
-    path = Application.app_dir(:icons_lv, "priv/static/icons/#{category}")
+    path = Application.app_dir(:icons_lv_darft, "priv/static/icons/#{category}")
 
     case File.ls(path) do
       {:ok, files} ->

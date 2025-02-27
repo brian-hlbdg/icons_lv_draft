@@ -14,10 +14,15 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
       active_color: nil,
       warning_color: nil,
       search_term: nil,
-      copied_icon: nil
+      copied_icon: nil,
+      current_icon: nil
     )
 
     {:ok, socket, temporary_assigns: [icons: []]}
+  end
+
+  def handle_event("select_icon", %{"icon" => icon_path}, socket) do
+    {:noreply, assign(socket, current_icon: icon_path)}
   end
 
   def handle_params(%{"category" => category_id}, _uri, socket) do
@@ -133,48 +138,57 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
           </div>
         </form>
 
-
         <div class="flex flex-wrap gap-6 mb-8">
           <div>
-            <.label for="base_color">Base Color</.label>
-            <.input name="base_color" value={@base_color} placeholder="e.g., #000000, currentColor"
-              phx-blur="update-color" phx-value-color="base" type="text" />
+            <label for="base_color" class="block text-sm font-medium text-gray-700 mb-1">Base Color</label>
+            <input type="text" name="base_color" value={@base_color} placeholder="e.g., #000000, currentColor"
+              phx-change="update-color" phx-value-color_type="base"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md" />
           </div>
 
           <div>
-            <.label for="active_color">Active Color (optional)</.label>
-            <.input name="active_color" value={@active_color} placeholder="e.g., #0066cc"
-              phx-blur="update-color" phx-value-color="active" type="text" />
+            <label for="active_color" class="block text-sm font-medium text-gray-700 mb-1">Active Color (optional)</label>
+            <input type="text" name="active_color" value={@active_color} placeholder="e.g., #0066cc"
+              phx-change="update-color" phx-value-color_type="active"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md" />
           </div>
 
           <div>
-            <.label for="warning_color">Warning Color (optional)</.label>
-            <.input name="warning_color" value={@warning_color} placeholder="e.g., #ff0000"
-              phx-blur="update-color" phx-value-color="warning" type="text" />
+            <label for="warning_color" class="block text-sm font-medium text-gray-700 mb-1">Warning Color (optional)</label>
+            <input type="text" name="warning_color" value={@warning_color} placeholder="e.g., #ff0000"
+              phx-change="update-color" phx-value-color_type="warning"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md" />
           </div>
         </div>
       </div>
 
-      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
         <%= for icon <- @icons do %>
-          <div class="icon-card p-4 border rounded-lg text-center hover:border-blue-500 cursor-pointer">
-            <div class="mb-3 flex justify-center items-center h-16">
-              <.icon name={icon.path} base_color={@base_color} active_color={@active_color} warning_color={@warning_color} class="w-10 h-10" />
+          <!-- In your icon card section of the template -->
+            <div class={"icon-card p-4 border rounded-lg text-center hover:border-blue-500 cursor-pointer #{if @current_icon == icon.path, do: "ring-2 ring-blue-500", else: ""}"}>
+              <div
+                class="mb-3 flex justify-center items-center h-16"
+                phx-click="select_icon"
+                phx-value-icon={icon.path}
+              >
+                <.icon name={icon.path} base_color={@base_color} active_color={@active_color} warning_color={@warning_color} class="w-10 h-10" />
+              </div>
+              <p class="text-sm font-medium"><%= icon.name %></p>
+              <div class="mt-3 flex gap-3 justify-center">
+                <button phx-click="copy-code" phx-value-format="html" phx-value-icon={icon.path}
+                  class="text-xs px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-md">
+                  HTML
+                </button>
+                <button phx-click="copy-code" phx-value-format="liveview" phx-value-icon={icon.path}
+                  class="text-xs px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-md">
+                  LiveView
+                </button>
+              </div>
             </div>
-            <p class="text-sm font-medium"><%= icon.name %></p>
-            <div class="mt-3 flex gap-2 justify-center">
-              <button phx-click="copy-code" phx-value-format="html" phx-value-icon={icon.path}
-                class="text-xs px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded">
-                HTML
-              </button>
-              <button phx-click="copy-code" phx-value-format="liveview" phx-value-icon={icon.path}
-                class="text-xs px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded">
-                LiveView
-              </button>
-            </div>
-          </div>
         <% end %>
       </div>
+
+
 
       <%= if @copied_icon do %>
         <div class="mt-8 p-6 border rounded-lg bg-gray-50">

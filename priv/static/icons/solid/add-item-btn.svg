@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="18px" height="18px" viewBox="0 0 18 18" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 49.3 (51167) - http://www.bohemiancoding.com/sketch -->
+    <title>Shape</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Varidesk-Design-MVP---Load-Entry---More-Simplified" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="3.2.0-::-Cargo---Add-Item" transform="translate(-363.000000, -855.000000)" fill="#757575" fill-rule="nonzero">
+            <g id="Body-Group-Copy" transform="translate(261.000000, 56.000000)">
+                <g id="Cargo---Add-Item-Group" transform="translate(89.000000, 788.000000)">
+                    <g id="Add-Item-Group" transform="translate(13.000000, 10.000000)">
+                        <path d="M9.9,5.5 L8.1,5.5 L8.1,9.1 L4.5,9.1 L4.5,10.9 L8.1,10.9 L8.1,14.5 L9.9,14.5 L9.9,10.9 L13.5,10.9 L13.5,9.1 L9.9,9.1 L9.9,5.5 Z M9,1 C4.032,1 0,5.032 0,10 C0,14.968 4.032,19 9,19 C13.968,19 18,14.968 18,10 C18,5.032 13.968,1 9,1 Z M9,17.2 C5.031,17.2 1.8,13.969 1.8,10 C1.8,6.031 5.031,2.8 9,2.8 C12.969,2.8 16.2,6.031 16.2,10 C16.2,13.969 12.969,17.2 9,17.2 Z" id="Shape"></path>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

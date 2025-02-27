@@ -43,7 +43,7 @@ defmodule IconsLvDraftWeb do
         layouts: [html: IconsLvDraftWeb.Layouts]
 
       import Plug.Conn
-      import IconsLvDraftWeb.Gettext
+      use Gettext, backend: IconsLvDraftWeb.Gettext
 
       unquote(verified_routes())
     end
@@ -85,7 +85,7 @@ defmodule IconsLvDraftWeb do
       import Phoenix.HTML
       # Core UI components and translation
       import IconsLvDraftWeb.CoreComponents
-      import IconsLvDraftWeb.Gettext
+      use Gettext, backend: IconsLvDraftWeb.Gettext
 
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS
