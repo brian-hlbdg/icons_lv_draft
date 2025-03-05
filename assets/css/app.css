@@ -95,3 +95,47 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  /* Additional styles for the icon gallery */
+
+/* Color input groups */
+.color-options {
+  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.color-options.show {
+  max-height: 500px;
+  opacity: 1;
+}
+
+/* Icon preview in the copy section */
+.icon-preview {
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Selected icon highlight */
+.icon-card.selected {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  transform: translateY(-2px);
+}
+
+/* Copy code notification animation */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.copied-notification {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Transitions for color options toggle */
+.toggle-transition {
+  transition: all 0.3s ease;
+}
