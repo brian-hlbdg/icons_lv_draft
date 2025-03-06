@@ -139,3 +139,63 @@
 .toggle-transition {
   transition: all 0.3s ease;
 }
+
+/* Custom CSS to ensure only one icon is shown in the preview */
+
+/* Isolate the single icon preview container */
+.icon-single-preview {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* Make sure only one icon is displayed by isolating its container */
+.icon-single-preview svg {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 64px !important;
+  max-height: 64px !important;
+  display: block !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Hide any potentially duplicated icons */
+.icon-single-preview svg ~ svg {
+  display: none !important;
+}
+
+/* Set fixed dimensions for the icon card */
+.icon-card {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+}
+
+.icon-card .icon-wrapper {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Add a subtle transition effect for selection */
+.icon-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.icon-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Selected icon highlighting */
+.icon-card.selected {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
