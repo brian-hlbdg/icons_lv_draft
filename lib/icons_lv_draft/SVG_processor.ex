@@ -6,7 +6,6 @@ defmodule IconsLvDraft.SVGProcessor do
   - Reading SVG files from disk
   - Processing SVG content for color customization
   - Converting SVG paths to proper formats
-  - Validating SVG compatibility with customization
   """
 
   @doc """
@@ -41,45 +40,60 @@ defmodule IconsLvDraft.SVGProcessor do
          icon_file <- get_icon_path(category, name),
          {:ok, svg_content} <- File.read(icon_file) do
 
-      # Check if the SVG can be colored
-      if !supports_color_customization?(svg_content) &&
-         (base_color != "currentColor" || active_color || warning_color) do
-        {:error, "This SVG doesn't support color customization"}
-      else
-        svg_content = process_svg_content(svg_content, unique_id, base_color, active_color, warning_color, class)
+      # Check if the SVG has "currentColor"
+      has_current_color = String.contains?(svg_content, "currentColor")
 
-        # Apply size if specified
-        if size do
-          svg_content
-          |> ensure_width_height_attrs(size)
-        else
-          svg_content
-        end
+      # Process the SVG content
+      svg_content = process_svg_content(svg_content, unique_id, base_color, active_color, warning_color, class, has_current_color)
+
+      # Apply size if specified
+      if size do
+        svg_content
+        |> ensure_width_height_attrs(size)
+      else
+        svg_content
       end
     else
       _ -> {:error, "Failed to process SVG file: #{icon_path}"}
     end
   end
 
+  @doc """
+  Extract the main fill color from an SVG.
+  Returns the most common fill color or nil if no fill is found.
+  """
+  def extract_main_color(svg_content) when is_binary(svg_content) do
+    # Look for fill attributes
+    fill_pattern = ~r/fill=["']([^"']+)["']/i
+    fill_colors = Regex.scan(fill_pattern, svg_content)
+                  |> Enum.map(fn [_, color] -> color end)
+                  |> Enum.reject(fn color -> color == "none" || color == "transparent" end)
+
+    # Count occurrences of each color
+    counts = Enum.reduce(fill_colors, %{}, fn color, acc ->
+      Map.update(acc, color, 1, &(&1 + 1))
+    end)
+
+    # Return the most common color or nil
+    if Enum.empty?(counts) do
+      nil
+    else
+      {color, _count} = Enum.max_by(counts, fn {_color, count} -> count end)
+      color
+    end
+  end
 
   @doc """
-  Check if an SVG supports color customization.
-  Returns true if the SVG contains fillable paths, stroke attributes,
-  or uses currentColor that can be customized.
+  Ensure SVG has width and height attributes.
+
+  ## Parameters
+  - `svg_content` - The SVG content as a string
+  - `size` - The size to set for width and height
+
+  ## Returns
+  - The SVG content with width and height attributes set
   """
-def supports_color_customization?(svg_content) do
-  # Check for various color-related attributes
-  has_fill = String.match?(svg_content, ~r/fill=["']([^"']+)["']/)
-  has_stroke = String.match?(svg_content, ~r/stroke=["']([^"']+)["']/)
-  has_style = String.match?(svg_content, ~r/<style[^>]*>/)
-  has_current_color = String.contains?(svg_content, "currentColor")
-
-  # SVG can be customized if it has any of these attributes
-  has_fill || has_stroke || has_style || has_current_color
-end
-
-  # Helper function to ensure width and height attributes are set
-  defp ensure_width_height_attrs(svg_content, size) do
+  def ensure_width_height_attrs(svg_content, size) do
     # Replace or add width and height attributes
     svg_content = Regex.replace(~r/(<svg[^>]*)(width="[^"]*")/, svg_content, "\\1width=\"#{size}\"")
     svg_content = Regex.replace(~r/(<svg[^>]*)(height="[^"]*")/, svg_content, "\\1height=\"#{size}\"")
@@ -111,15 +125,23 @@ end
   - `active_color` - The active color for interactive elements (optional)
   - `warning_color` - The warning color for alert elements (optional)
   - `class` - Additional CSS classes to add to the SVG element
+  - `has_current_color` - Whether the SVG uses currentColor (default: true)
 
   ## Returns
   - A string containing the processed SVG content
   """
-  def process_svg_content(svg_content, element_id, base_color, active_color, warning_color, class) do
+  def process_svg_content(svg_content, element_id, base_color, active_color, warning_color, class, has_current_color \\ true) do
+    # Extract the main color if we need to replace it
+    main_color = if !has_current_color && base_color && base_color != "currentColor" do
+      extract_main_color(svg_content)
+    else
+      nil
+    end
+
     svg_content
     |> add_element_id(element_id)
     |> add_classes(class)
-    |> set_base_color(base_color)
+    |> set_base_color(base_color, main_color, has_current_color)
     |> add_color_variables(active_color, warning_color)
   end
 
@@ -160,11 +182,45 @@ end
   end
 
   # Set the base color of the SVG
-  defp set_base_color(svg_content, "currentColor"), do: svg_content
-  defp set_base_color(svg_content, base_color) do
-    svg_content
-    |> String.replace("fill=\"currentColor\"", "fill=\"#{base_color}\"")
-    |> String.replace("stroke=\"currentColor\"", "stroke=\"#{base_color}\"")
+  defp set_base_color(svg_content, nil, _main_color, _has_current_color), do: svg_content
+  defp set_base_color(svg_content, "currentColor", _main_color, _has_current_color), do: svg_content
+  defp set_base_color(svg_content, base_color, main_color, has_current_color) do
+    cond do
+      # If SVG uses currentColor, replace it
+      has_current_color ->
+        svg_content
+        |> String.replace(~r/fill="currentColor"/i, "fill=\"#{base_color}\"")
+        |> String.replace(~r/stroke="currentColor"/i, "stroke=\"#{base_color}\"")
+
+      # If we detected a main color, replace that specifically
+      main_color != nil ->
+        svg_content
+        |> String.replace(~r/fill="#{main_color}"/i, "fill=\"#{base_color}\"")
+        |> String.replace(~r/stroke="#{main_color}"/i, "stroke=\"#{base_color}\"")
+        |> replace_in_style(main_color, base_color)
+
+      # Otherwise, replace all fill colors except "none" and "transparent"
+      true ->
+        svg_content
+        |> String.replace(~r/fill="([^"]*)"/i, fn match ->
+          if String.contains?(match, "none") || String.contains?(match, "transparent") do
+            match
+          else
+            "fill=\"#{base_color}\""
+          end
+        end)
+    end
+  end
+
+  # Replace colors in style attributes
+  defp replace_in_style(svg_content, from_color, to_color) do
+    Regex.replace(~r/style="([^"]*)"/i, svg_content, fn _, style ->
+      updated_style = style
+        |> String.replace(~r/fill:\s*#{from_color}/i, "fill: #{to_color}")
+        |> String.replace(~r/stroke:\s*#{from_color}/i, "stroke: #{to_color}")
+
+      "style=\"#{updated_style}\""
+    end)
   end
 
   # Add color variables for active and warning states

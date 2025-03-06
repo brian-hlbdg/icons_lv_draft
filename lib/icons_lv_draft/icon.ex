@@ -55,10 +55,17 @@ defmodule IconsLvDraft.Icon do
   end
 
   def process_svg(svg_content, base_color, active_color, warning_color) do
-    # Basic implementation - in a real app, use Floki for proper parsing
-    svg_content
-    |> String.replace("fill=\"currentColor\"", "fill=\"#{base_color}\"")
-    |> add_color_variables(active_color, warning_color)
+    # Apply colors to the SVG content
+    svg_content = if base_color != "currentColor" && base_color != nil do
+      svg_content
+      |> String.replace(~r/fill="currentColor"/i, "fill=\"#{base_color}\"")
+      |> String.replace(~r/stroke="currentColor"/i, "stroke=\"#{base_color}\"")
+    else
+      svg_content
+    end
+
+    # Add color variables for interactive states
+    add_color_variables(svg_content, active_color, warning_color)
   end
 
   defp add_color_variables(svg, nil, nil), do: svg
@@ -67,6 +74,13 @@ defmodule IconsLvDraft.Icon do
     |> String.replace(
       "</svg>",
       "<style>:root { --active-color: #{active_color}; }</style></svg>"
+    )
+  end
+  defp add_color_variables(svg, nil, warning_color) do
+    svg
+    |> String.replace(
+      "</svg>",
+      "<style>:root { --warning-color: #{warning_color}; }</style></svg>"
     )
   end
   defp add_color_variables(svg, active_color, warning_color) do

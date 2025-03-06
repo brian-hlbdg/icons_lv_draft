@@ -1,58 +1,52 @@
 defmodule IconsLvDraftWeb.Components.ColorPicker do
   @moduledoc """
-  A color picker component that provides a text input with a color preview.
+  A color picker component for the IconsLvDraft application.
   """
   use Phoenix.Component
+  alias Phoenix.LiveView.JS
 
-  attr :id, :string, required: true
-  attr :name, :string, required: true
-  attr :value, :string, default: nil
-  attr :label, :string, required: true
-  attr :placeholder, :string, default: "e.g., #000000, currentColor"
-  attr :phx_change, :string, default: nil
-  attr :phx_value_color, :string, default: nil
-  attr :required, :boolean, default: false
-  attr :disabled, :boolean, default: false
-  attr :help_text, :string, default: nil
+  attr :id, :string, required: true, doc: "Unique ID for the color picker"
+  attr :value, :string, doc: "The current color value"
+  attr :label, :string, default: "Color", doc: "The label for the color picker"
+  attr :color_type, :string, required: true, doc: "Type of color (base, active, warning)"
+  attr :on_change, JS, default: %JS{}, doc: "JS command to execute on color change"
+  attr :disabled, :boolean, default: false, doc: "Whether the color picker is disabled"
+  attr :placeholder, :string, default: "", doc: "Placeholder text for the text input"
 
   def color_picker(assigns) do
-    # Handle the case where value is nil for the preview
-    preview_color = case assigns.value do
-      nil -> "#cccccc"  # Default gray if no color is selected
-      "currentColor" -> "#000000"  # Black for currentColor
-      "" -> "#cccccc"  # Gray for empty string
-      color -> color   # Use the actual color value
-    end
-
-    assigns = assign(assigns, :preview_color, preview_color)
-
     ~H"""
-    <div>
-      <label for={@id} class="block text-sm font-medium text-gray-700 mb-1">
-        <%= @label %><%= if @required, do: " *" %>
-      </label>
+    <div class="color-picker-container" id={"color-picker-#{@id}"} phx-hook="ColorPicker">
+      <label for={@id} class="block text-sm font-medium text-gray-700 mb-1"><%= @label %></label>
       <div class="flex">
-        <input
-          type="text"
-          id={@id}
-          name={@name}
-          value={@value}
-          placeholder={@placeholder}
-          disabled={@disabled}
-          required={@required}
-          phx-change={@phx_change}
-          phx-value-color={@phx_value_color}
-          class={"w-full px-3 py-2 border border-gray-300 rounded-l-md #{if @disabled, do: "bg-gray-100 text-gray-500"}"}
-        />
-        <div
-          class={"w-10 border-t border-r border-b border-gray-300 rounded-r-md flex items-center justify-center #{if @disabled, do: "bg-gray-100"}"}
-          style={"background-color: #{@preview_color};"}
-        >
+        <div class="relative flex items-center">
+          <input
+            type="color"
+            id={"color-" <> @id}
+            value={@value && String.match?(@value, ~r/^#[0-9A-F]{6}$/i) && @value || "#000000"}
+            class="sr-only"
+            disabled={@disabled}
+            phx-value-color={@color_type}
+          />
+          <div
+            class="w-8 h-8 rounded-l border border-gray-300 flex items-center justify-center cursor-pointer overflow-hidden"
+            phx-click={JS.dispatch("click", to: "#color-#{@id}")}
+            style={"background-color: #{(@value && @value != "currentColor") && @value || "#ffffff"}"}
+          >
+            <div class="color-swatch"></div>
+          </div>
+          <input
+            type="text"
+            id={@id}
+            value={@value}
+            placeholder={@placeholder}
+            class="w-full rounded-r px-3 py-2 border border-l-0 border-gray-300"
+            phx-change="update-color"
+            phx-value-color={@color_type}
+            disabled={@disabled}
+            name={"color-#{@color_type}"}
+          />
         </div>
       </div>
-      <%= if @help_text do %>
-        <div class="text-xs text-gray-500 mt-1"><%= @help_text %></div>
-      <% end %>
     </div>
     """
   end
