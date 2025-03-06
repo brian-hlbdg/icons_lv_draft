@@ -12,14 +12,10 @@
     </script>
     <script>
       // Script to handle copying to clipboard
-      document.addEventListener("icons-lv:copy-code", (event) => {
-        const { category, name, baseColor, activeColor, warningColor } = event.detail;
-        
-        // In a real app, this would handle the clipboard copy functionality
-        console.log(`Copying icon: ${category}/${name}`, { 
-          baseColor, 
-          activeColor, 
-          warningColor 
+      document.addEventListener("icons-lv:copy", (event) => {
+        const { text } = event.detail;
+        navigator.clipboard.writeText(text).then(() => {
+          console.log('Text copied to clipboard');
         });
       });
     </script>
