@@ -6,6 +6,7 @@ defmodule IconsLvDraft.SVGProcessor do
   - Reading SVG files from disk
   - Processing SVG content for color customization
   - Converting SVG paths to proper formats
+  - Validating SVG compatibility with customization
   """
 
   @doc """
@@ -39,19 +40,43 @@ defmodule IconsLvDraft.SVGProcessor do
     with [category, name] <- String.split(icon_path, "/", parts: 2),
          icon_file <- get_icon_path(category, name),
          {:ok, svg_content} <- File.read(icon_file) do
-      svg_content = process_svg_content(svg_content, unique_id, base_color, active_color, warning_color, class)
 
-      # Apply size if specified
-      if size do
-        svg_content
-        |> ensure_width_height_attrs(size)
+      # Check if the SVG can be colored
+      if !supports_color_customization?(svg_content) &&
+         (base_color != "currentColor" || active_color || warning_color) do
+        {:error, "This SVG doesn't support color customization"}
       else
-        svg_content
+        svg_content = process_svg_content(svg_content, unique_id, base_color, active_color, warning_color, class)
+
+        # Apply size if specified
+        if size do
+          svg_content
+          |> ensure_width_height_attrs(size)
+        else
+          svg_content
+        end
       end
     else
       _ -> {:error, "Failed to process SVG file: #{icon_path}"}
     end
   end
+
+
+  @doc """
+  Check if an SVG supports color customization.
+  Returns true if the SVG contains fillable paths, stroke attributes,
+  or uses currentColor that can be customized.
+  """
+def supports_color_customization?(svg_content) do
+  # Check for various color-related attributes
+  has_fill = String.match?(svg_content, ~r/fill=["']([^"']+)["']/)
+  has_stroke = String.match?(svg_content, ~r/stroke=["']([^"']+)["']/)
+  has_style = String.match?(svg_content, ~r/<style[^>]*>/)
+  has_current_color = String.contains?(svg_content, "currentColor")
+
+  # SVG can be customized if it has any of these attributes
+  has_fill || has_stroke || has_style || has_current_color
+end
 
   # Helper function to ensure width and height attributes are set
   defp ensure_width_height_attrs(svg_content, size) do

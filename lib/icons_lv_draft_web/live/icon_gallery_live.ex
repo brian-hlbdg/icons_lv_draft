@@ -2,7 +2,6 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
   use IconsLvDraftWeb, :live_view
 
   alias IconsLvDraft.Categories
-  alias IconsLvDraft.SVGProcessor
 
   def mount(_params, _session, socket) do
     categories = Categories.all()
@@ -18,20 +17,37 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
       copied_icon: nil,
       current_icon: nil,
       processed_svg: nil,
-      show_color_options: false  # Set to false by default
+      show_color_options: false,  # Set to false by default
+      color_error: nil,           # Add error state for color changes
+      svg_content: nil            # Store the raw SVG content for analysis
     )
 
-    # Remove temporary assigns for icons to ensure they stay in the DOM
     {:ok, socket}
   end
 
   def handle_event("select_icon", %{"icon" => icon_path}, socket) do
-    processed_svg = process_icon_svg(icon_path, "selected-icon-preview")
+    # Read the SVG content and detect colors
+    svg_content = read_svg_content(icon_path)
 
+    # Check if coloration is possible and extract dominant color
+    {can_customize, dominant_color} = check_svg_customization(svg_content)
+
+    # Set initial color based on detection
+    base_color = if dominant_color && dominant_color != "", do: dominant_color, else: "currentColor"
+
+    # Process the SVG with the detected color
+    processed_svg = process_icon_svg(icon_path, "selected-icon-preview",
+      base_color: base_color)
+
+    # Reset color error when selecting a new icon
     {:noreply, assign(socket,
       current_icon: icon_path,
       processed_svg: processed_svg,
-      show_color_options: false  # Always hide color options when selecting a new icon
+      show_color_options: false,        # Always hide color options when selecting a new icon
+      color_error: nil,                # Reset any color error messages
+      base_color: base_color,          # Set the base color to detected color
+      svg_content: svg_content,        # Store SVG content for later analysis
+      can_customize: can_customize     # Store whether SVG can be customized
     )}
   end
 
@@ -86,14 +102,30 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
 
     # If there's a currently selected icon, update the processed SVG
     socket = if socket.assigns.current_icon do
-      processed_svg = process_icon_svg(
-        socket.assigns.current_icon,
-        "selected-icon-preview",
-        base_color: socket.assigns.base_color,
-        active_color: socket.assigns.active_color,
-        warning_color: socket.assigns.warning_color
-      )
-      assign(socket, processed_svg: processed_svg)
+      # Check if color customization is possible
+      can_customize = socket.assigns.can_customize
+
+      if !can_customize && color_type == "base" && value != "currentColor" do
+        # If SVG doesn't support colors, show an error
+        assign(socket, color_error: "This SVG doesn't support color customization")
+      else
+        # Try to process the SVG with the new color
+        processed_svg = process_icon_svg(
+          socket.assigns.current_icon,
+          "selected-icon-preview",
+          base_color: socket.assigns.base_color,
+          active_color: socket.assigns.active_color,
+          warning_color: socket.assigns.warning_color
+        )
+
+        if processed_svg do
+          # Color change successful
+          assign(socket, processed_svg: processed_svg, color_error: nil)
+        else
+          # Color change failed - keep the old SVG and show an error
+          assign(socket, color_error: "Failed to apply color changes to this SVG")
+        end
+      end
     else
       socket
     end
@@ -107,8 +139,26 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
     # Check if we're copying from a different icon than the currently previewed one
     # If so, update the preview to show this icon
     socket = if icon_path != socket.assigns.current_icon do
-      processed_svg = process_icon_svg(icon_path, "selected-icon-preview")
-      assign(socket, current_icon: icon_path, processed_svg: processed_svg)
+      # Read the SVG content and detect colors
+      svg_content = read_svg_content(icon_path)
+
+      # Check if coloration is possible and extract dominant color
+      {can_customize, dominant_color} = check_svg_customization(svg_content)
+
+      # Use the detected dominant color as the initial color
+      new_base_color = if dominant_color && dominant_color != "", do: dominant_color, else: "currentColor"
+
+      processed_svg = process_icon_svg(icon_path, "selected-icon-preview",
+        base_color: new_base_color)
+
+      assign(socket,
+        current_icon: icon_path,
+        processed_svg: processed_svg,
+        color_error: nil,
+        base_color: new_base_color,
+        svg_content: svg_content,
+        can_customize: can_customize
+      )
     else
       socket
     end
@@ -141,26 +191,110 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
   end
 
   def handle_event("close_detail", _params, socket) do
-    {:noreply, assign(socket, current_icon: nil, processed_svg: nil, show_color_options: false)}
+    {:noreply, assign(socket,
+      current_icon: nil,
+      processed_svg: nil,
+      show_color_options: false,
+      color_error: nil,
+      svg_content: nil,
+      can_customize: nil
+    )}
+  end
+
+  # Read SVG content from a file
+  defp read_svg_content(icon_path) do
+    try do
+      # Split the icon path into category and name
+      [category, name] = String.split(icon_path, "/", parts: 2)
+      file_path = Application.app_dir(:icons_lv_draft, "priv/static/icons/#{category}/#{name}.svg")
+
+      # Read the SVG file
+      {:ok, svg_content} = File.read(file_path)
+      svg_content
+    rescue
+      _ -> ""  # Return empty string if there's an error
+    end
+  end
+
+  # Check if SVG supports color customization and extract color
+  defp check_svg_customization(svg_content) do
+    # Check for fill attribute
+    fill_color = extract_fill_color(svg_content)
+    has_fill = String.match?(svg_content, ~r/fill=["']([^"']+)["']/)
+    has_stroke = String.match?(svg_content, ~r/stroke=["']([^"']+)["']/)
+    has_current_color = String.contains?(svg_content, "currentColor")
+
+    # Determine if SVG can be customized
+    can_customize = has_fill || has_stroke || has_current_color
+
+    # Return both customization flag and dominant color
+    {can_customize, fill_color}
+  end
+
+  # Extract fill color from SVG content
+  defp extract_fill_color(svg_content) do
+    # Match fill attribute with color value
+    case Regex.run(~r/fill=["']([^"']+)["']/, svg_content, capture: :all_but_first) do
+      [color] when color != "none" -> color
+      _ -> nil
+    end
   end
 
   # Process an icon SVG file with the current color settings
-  defp process_icon_svg(icon_path, element_id, opts \\ []) do
-    # Get the colors from options or use the defaults
-    opts = Keyword.merge([
-      base_color: "currentColor",
-      active_color: nil,
-      warning_color: nil,
-      class: "w-full h-full",
-      size: "64px"  # Add default size for preview
-    ], opts)
+  # Process an icon SVG file with the current color settings
+  # Process an icon SVG file with the current color settings
+defp process_icon_svg(icon_path, element_id, opts \\ []) do
+  # Get the colors from options or use the defaults
+  base_color = Keyword.get(opts, :base_color, "currentColor")
+  active_color = Keyword.get(opts, :active_color)
+  warning_color = Keyword.get(opts, :warning_color)
 
-    # Process the SVG file with a unique element ID for each icon
-    # This prevents ID conflicts when showing multiple SVGs
-    case SVGProcessor.process_svg_file(icon_path, element_id, opts) do
-      {:error, _} -> nil
-      processed_svg -> processed_svg
+  try do
+    # Generate basic SVG by reading from file
+    [category, name] = String.split(icon_path, "/", parts: 2)
+    file_path = Application.app_dir(:icons_lv_draft, "priv/static/icons/#{category}/#{name}.svg")
+
+    # Read the SVG directly from file
+    {:ok, svg_content} = File.read(file_path)
+
+    # Apply base color if needed
+    svg_content = if base_color != "currentColor" do
+      svg_content
+      |> String.replace("fill=\"currentColor\"", "fill=\"#{base_color}\"")
+      |> String.replace("stroke=\"currentColor\"", "stroke=\"#{base_color}\"")
+    else
+      svg_content
     end
+
+    # First, remove any existing IDs to avoid conflicts
+    svg_without_ids = Regex.replace(~r/(<[^>]*)id="[^"]*"([^>]*)/, svg_content, "\\1\\2")
+
+    # Generate a unique ID that includes timestamp to ensure uniqueness
+    unique_id = "#{element_id}-#{:os.system_time(:millisecond)}-#{:erlang.unique_integer([:positive])}"
+
+    # Add our unique ID to the SVG
+    svg_with_id = String.replace(svg_without_ids, "<svg", "<svg id=\"#{unique_id}\"", global: false)
+
+    # Add color variables if needed
+    svg_with_colors = add_color_variables(svg_with_id, active_color, warning_color)
+
+    # Add class for styling
+    String.replace(svg_with_colors, "<svg", "<svg class=\"w-full h-full\"", global: false)
+  rescue
+    _ -> nil  # Return nil on error
+  end
+end
+
+  # Helper to add color variables
+  defp add_color_variables(svg, nil, nil), do: svg
+  defp add_color_variables(svg, active_color, nil) do
+    String.replace(svg, "</svg>", "<style>:root{--active-color:#{active_color};}</style></svg>")
+  end
+  defp add_color_variables(svg, nil, warning_color) do
+    String.replace(svg, "</svg>", "<style>:root{--warning-color:#{warning_color};}</style></svg>")
+  end
+  defp add_color_variables(svg, active_color, warning_color) do
+    String.replace(svg, "</svg>", "<style>:root{--active-color:#{active_color};--warning-color:#{warning_color};}</style></svg>")
   end
 
   # In Phoenix 1.7, the template is in a separate function
@@ -229,29 +363,90 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
               <%= Phoenix.HTML.raw(@processed_svg) %>
             </div>
 
+            <%= if @color_error do %>
+              <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                <div class="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <%= @color_error %>
+                </div>
+              </div>
+            <% end %>
+
+            <!-- Add SVG color information message -->
+            <%= if @svg_content do %>
+              <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+                <div class="flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <%= if @can_customize do %>
+                    This SVG supports color customization.
+                  <% else %>
+                    This SVG doesn't support color customization.
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+
             <%= if @show_color_options do %>
               <div class="mb-4 p-4 bg-gray-50 border rounded-lg">
                 <h4 class="text-sm font-medium text-gray-700 mb-3">Color Customization</h4>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <!-- Base color input -->
                   <div>
                     <label for="base_color" class="block text-sm font-medium text-gray-700 mb-1">Base Color</label>
-                    <input type="text" name="base_color" value={@base_color} placeholder="e.g., #000000, currentColor"
-                      phx-change="update-color" phx-value-color="base"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <div class="flex">
+                      <input type="text" name="base_color" value={@base_color} placeholder="e.g., #000000, currentColor"
+                        phx-change="update-color" phx-value-color="base"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-l-md"
+                        disabled={!@can_customize} />
+                      <div class="w-10 border-t border-r border-b border-gray-300 rounded-r-md flex items-center justify-center"
+                          style={"background-color: #{if @base_color == "currentColor", do: "#000000", else: @base_color};"}>
+                      </div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">Current value: <%= @base_color %></div>
                   </div>
 
+                  <!-- Active color input -->
                   <div>
                     <label for="active_color" class="block text-sm font-medium text-gray-700 mb-1">Active Color (optional)</label>
-                    <input type="text" name="active_color" value={@active_color} placeholder="e.g., #0066cc"
-                      phx-change="update-color" phx-value-color="active"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <div class="flex">
+                      <input type="text" name="active_color" value={@active_color} placeholder="e.g., #0066cc"
+                        phx-change="update-color" phx-value-color="active"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-l-md"
+                        disabled={!@can_customize} />
+                      <%= if @active_color do %>
+                        <div class="w-10 border-t border-r border-b border-gray-300 rounded-r-md flex items-center justify-center"
+                            style={"background-color: #{@active_color};"}>
+                        </div>
+                      <% else %>
+                        <div class="w-10 border-t border-r border-b border-gray-300 rounded-r-md flex items-center justify-center bg-gray-200">
+                        </div>
+                      <% end %>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">Current value: <%= @active_color || "none" %></div>
                   </div>
 
+                  <!-- Warning color input -->
                   <div>
                     <label for="warning_color" class="block text-sm font-medium text-gray-700 mb-1">Warning Color (optional)</label>
-                    <input type="text" name="warning_color" value={@warning_color} placeholder="e.g., #ff0000"
-                      phx-change="update-color" phx-value-color="warning"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <div class="flex">
+                      <input type="text" name="warning_color" value={@warning_color} placeholder="e.g., #ff0000"
+                        phx-change="update-color" phx-value-color="warning"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-l-md"
+                        disabled={!@can_customize} />
+                      <%= if @warning_color do %>
+                        <div class="w-10 border-t border-r border-b border-gray-300 rounded-r-md flex items-center justify-center"
+                            style={"background-color: #{@warning_color};"}>
+                        </div>
+                      <% else %>
+                        <div class="w-10 border-t border-r border-b border-gray-300 rounded-r-md flex items-center justify-center bg-gray-200">
+                        </div>
+                      <% end %>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">Current value: <%= @warning_color || "none" %></div>
                   </div>
                 </div>
               </div>
@@ -281,6 +476,15 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
                 Copy LiveView
               </button>
             </div>
+
+            <!-- Include a description of the SVG colorability -->
+            <div class="mt-4 text-sm text-gray-600">
+              <%= if @can_customize do %>
+                <p>This SVG supports color customization via the color pickers above.</p>
+              <% else %>
+                <p><strong>Note:</strong> This SVG doesn't support color customization. The code will use the original colors of the SVG.</p>
+              <% end %>
+            </div>
           </div>
 
           <%= if @copied_icon do %>
@@ -297,15 +501,23 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
 
       <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         <%= for icon <- @icons do %>
+          <% icon_content = read_svg_content(icon.path) %>
+          <% {can_customize, _} = check_svg_customization(icon_content) %>
+
           <div class={"icon-card p-4 border rounded-lg text-center hover:border-blue-500 cursor-pointer #{if @current_icon == icon.path, do: "ring-2 ring-blue-500", else: ""}"}>
             <div
               class="mb-3 flex justify-center items-center h-16"
               phx-click="select_icon"
               phx-value-icon={icon.path}
             >
-              <.icon name={icon.path} base_color={@base_color} active_color={@active_color} warning_color={@warning_color} class="w-10 h-10" id={"icon-card-#{icon.id}"} />
+              <.icon name={icon.path} base_color="currentColor" class="w-10 h-10" id={"icon-card-#{icon.id}"} />
             </div>
             <p class="text-sm font-medium"><%= icon.name %></p>
+
+            <%= if !can_customize do %>
+              <div class="text-xs text-gray-500 mb-2">Not colorable</div>
+            <% end %>
+
             <div class="mt-3 flex gap-3 justify-center">
               <button phx-click="copy-code" phx-value-format="html" phx-value-icon={icon.path}
                 class="text-xs px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-md">
