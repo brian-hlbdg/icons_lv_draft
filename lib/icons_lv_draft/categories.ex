@@ -40,6 +40,21 @@ defmodule IconsLvDraft.Categories do
   end
 
   @doc """
+  Returns a list of all icons across all categories.
+  """
+  def list_all_icons do
+    all()
+    |> Enum.flat_map(fn category ->
+      list_icons(category.id)
+      |> Enum.map(fn icon ->
+        # Add category information to each icon
+        Map.put(icon, :category_name, category.name)
+      end)
+    end)
+    |> Enum.sort_by(& &1.name)
+  end
+
+  @doc """
   Returns a formatted, human-readable icon name.
   """
   def format_name(name) do
@@ -56,6 +71,17 @@ defmodule IconsLvDraft.Categories do
   """
   def get_category(id) do
     Enum.find(all(), &(&1.id == id))
+  end
+
+  @doc """
+  Returns a virtual category for "All Icons".
+  """
+  def get_all_category do
+    %{
+      id: "all",
+      name: "All Icons",
+      description: "Icons from all categories"
+    }
   end
 
   @doc """
