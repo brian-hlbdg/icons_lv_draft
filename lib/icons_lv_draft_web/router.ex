@@ -18,7 +18,9 @@ defmodule IconsLvDraftWeb.Router do
     pipe_through :browser
 
     live "/", IconGalleryLive, :index
+    live "/all", IconGalleryLive, :all
     live "/category/:category", IconGalleryLive, :category
+    live "/upload", IconUploadLive, :index
   end
 
   # Other scopes may use custom stacks.

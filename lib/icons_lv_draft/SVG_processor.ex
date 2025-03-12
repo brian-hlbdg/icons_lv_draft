@@ -33,7 +33,6 @@ defmodule IconsLvDraft.SVGProcessor do
     size = Keyword.get(opts, :size)
 
     # Create a unique ID by combining the element_id with the icon path
-    # This ensures we don't have ID conflicts when showing multiple icons
     unique_id = if element_id, do: "#{element_id}-#{String.replace(icon_path, "/", "-")}", else: nil
 
     with [category, name] <- String.split(icon_path, "/", parts: 2),
@@ -69,8 +68,23 @@ defmodule IconsLvDraft.SVGProcessor do
                   |> Enum.map(fn [_, color] -> color end)
                   |> Enum.reject(fn color -> color == "none" || color == "transparent" end)
 
+    # Also look for fill in style tags
+    style_pattern = ~r/style=["']([^"']*)fill:\s*([^;"']+)/i
+    style_colors = Regex.scan(style_pattern, svg_content)
+                   |> Enum.map(fn [_, _, color] -> color end)
+                   |> Enum.reject(fn color -> color == "none" || color == "transparent" end)
+
+    # Look for class definitions with fill
+    class_fill_pattern = ~r/\.([^{]+){[^}]*fill:\s*([^;}]+)/i
+    class_colors = Regex.scan(class_fill_pattern, svg_content)
+                   |> Enum.map(fn [_, _, color] -> color end)
+                   |> Enum.reject(fn color -> color == "none" || color == "transparent" end)
+
+    # Combine all colors
+    all_colors = fill_colors ++ style_colors ++ class_colors
+
     # Count occurrences of each color
-    counts = Enum.reduce(fill_colors, %{}, fn color, acc ->
+    counts = Enum.reduce(all_colors, %{}, fn color, acc ->
       Map.update(acc, color, 1, &(&1 + 1))
     end)
 
@@ -82,6 +96,7 @@ defmodule IconsLvDraft.SVGProcessor do
       color
     end
   end
+  def extract_main_color(_), do: nil
 
   @doc """
   Ensure SVG has width and height attributes.
@@ -153,22 +168,35 @@ defmodule IconsLvDraft.SVGProcessor do
   # Add an ID to the SVG element if not nil
   defp add_element_id(svg_content, nil), do: svg_content
   defp add_element_id(svg_content, element_id) do
-    # First, remove any existing IDs from all elements inside the SVG to avoid ID conflicts
-    svg_content = Regex.replace(~r/(<[^>]*)id="[^"]*"([^>]*)/, svg_content, "\\1\\2")
+    # Generate a truly unique ID by adding a random suffix
+    unique_id = "#{element_id}-#{:rand.uniform(1000000)}"
 
-    # Generate a unique ID for the SVG element
-    unique_id = "#{element_id}-#{:erlang.system_time(:millisecond)}"
+    # First, collect all existing IDs within the SVG
+    id_pattern = ~r/\sid="([^"]*)"/
+    ids = Regex.scan(id_pattern, svg_content) |> Enum.map(fn [_, id] -> id end)
 
-    # Add the unique ID to the SVG root element
-    svg_content = if String.match?(svg_content, ~r/<svg/) do
-      Regex.replace(~r/<svg/, svg_content, "<svg id=\"#{unique_id}\"")
+    # Create a map of old ID to new namespaced ID
+    id_mapping = Enum.into(ids, %{}, fn old_id ->
+      {old_id, "#{unique_id}-#{old_id}"}
+    end)
+
+    # Replace all IDs with namespaced versions
+    svg_with_ids = Enum.reduce(id_mapping, svg_content, fn {old_id, new_id}, acc ->
+      String.replace(acc, ~r/\sid="#{old_id}"/, " id=\"#{new_id}\"")
+    end)
+
+    # Replace internal references (url(#id)) with the new IDs
+    svg_with_refs = Enum.reduce(id_mapping, svg_with_ids, fn {old_id, new_id}, acc ->
+      String.replace(acc, ~r/url\(##{old_id}\)/, "url(##{new_id})")
+    end)
+
+    # Add ID to the SVG element if it doesn't have one
+    if String.match?(svg_with_refs, ~r/<svg[^>]*id="[^"]*"/) do
+      svg_with_refs
     else
-      svg_content
+      # Add the unique ID to the root SVG element
+      Regex.replace(~r/<svg/, svg_with_refs, "<svg id=\"#{unique_id}\"")
     end
-
-    # Fix any internal references that might have relied on old IDs
-    # In a real app, you would need more sophisticated handling here
-    svg_content
   end
 
   # Add CSS classes to the SVG element

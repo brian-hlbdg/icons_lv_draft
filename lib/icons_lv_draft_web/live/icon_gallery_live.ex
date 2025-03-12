@@ -8,9 +8,12 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
   def mount(_params, _session, socket) do
     categories = Categories.all()
 
+    # Add virtual "All" category
+    all_category = Categories.get_all_category()
+
     socket = assign(socket,
-      categories: categories,
-      current_category: List.first(categories),
+      categories: [all_category | categories],
+      current_category: all_category,
       icons: [],
       base_color: "currentColor",
       active_color: nil,
@@ -20,7 +23,8 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
       current_icon: nil,
       processed_svg: nil,
       current_svg_info: nil,
-      show_color_options: false  # Set to false by default
+      show_color_options: false,  # Set to false by default
+      is_all_category: false      # Track if we're showing all icons
     )
 
     # Remove temporary assigns for icons to ensure they stay in the DOM
@@ -84,7 +88,22 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
     socket = assign(socket,
       current_category: category,
       icons: icons,
-      page_title: "#{category.name} Icons"
+      page_title: "#{category.name} Icons",
+      is_all_category: false
+    )
+
+    {:noreply, socket}
+  end
+
+  def handle_params(_params, _uri, %{assigns: %{live_action: :all}} = socket) do
+    all_category = Categories.get_all_category()
+    icons = Categories.list_all_icons()
+
+    socket = assign(socket,
+      current_category: all_category,
+      icons: icons,
+      page_title: "All Icons",
+      is_all_category: true
     )
 
     {:noreply, socket}
@@ -96,21 +115,37 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
 
     socket = assign(socket,
       icons: icons,
-      page_title: "Icon Gallery"
+      page_title: "Icon Gallery",
+      is_all_category: false
     )
 
     {:noreply, socket}
   end
 
   def handle_event("search", %{"search" => %{"term" => term}}, socket) do
-    %{current_category: %{id: category_id}} = socket.assigns
+    %{current_category: current_category, is_all_category: is_all_category} = socket.assigns
 
     icons =
       if term == "" do
-        Categories.list_icons(category_id)
+        if is_all_category do
+          Categories.list_all_icons()
+        else
+          Categories.list_icons(current_category.id)
+        end
       else
-        Categories.list_icons(category_id)
-        |> Enum.filter(&String.contains?(String.downcase(&1.name), String.downcase(term)))
+        term_lower = String.downcase(term)
+
+        if is_all_category do
+          Categories.list_all_icons()
+          |> Enum.filter(fn icon ->
+            String.contains?(String.downcase(icon.name), term_lower) ||
+            (Map.has_key?(icon, :category_name) &&
+             String.contains?(String.downcase(icon.category_name), term_lower))
+          end)
+        else
+          Categories.list_icons(current_category.id)
+          |> Enum.filter(&String.contains?(String.downcase(&1.name), term_lower))
+        end
       end
 
     {:noreply, assign(socket, icons: icons, search_term: term)}
@@ -295,7 +330,7 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
       <div class="mb-8 flex flex-wrap gap-4">
         <%= for category <- @categories do %>
           <.link
-            navigate={~p"/category/#{category.id}"}
+            navigate={if category.id == "all", do: ~p"/all", else: ~p"/category/#{category.id}"}
             class={"px-4 py-2 rounded #{if @current_category.id == category.id, do: "bg-blue-500 text-white", else: "bg-gray-200"}"}
           >
             <%= category.name %>
@@ -304,7 +339,7 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
       </div>
 
       <div class="mb-8">
-        <h2 class="text-2xl font-semibold mb-4"><%= @current_category.name %> Icons</h2>
+        <h2 class="text-2xl font-semibold mb-4"><%= @current_category.name %></h2>
         <p class="text-gray-600 mb-4"><%= @current_category.description %></p>
 
         <form phx-change="search" class="mb-6">
@@ -488,7 +523,12 @@ defmodule IconsLvDraftWeb.IconGalleryLive do
             >
               <.icon name={icon.path} base_color={@base_color} active_color={@active_color} warning_color={@warning_color} class="w-10 h-10" id={"icon-card-#{icon.id}"} />
             </div>
-            <p class="text-sm font-medium"><%= icon.name %></p>
+            <div>
+              <p class="text-sm font-medium"><%= icon.name %></p>
+              <%= if @is_all_category && Map.has_key?(icon, :category_name) do %>
+                <p class="text-xs text-gray-500 mt-1"><%= icon.category_name %></p>
+              <% end %>
+            </div>
             <div class="mt-3 flex gap-3 justify-center">
               <button phx-click="copy-code" phx-value-format="html" phx-value-icon={icon.path}
                 class="text-xs px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-md">

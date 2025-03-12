@@ -43,6 +43,87 @@ const Hooks = {
       });
     }
   },
+
+  Notification: {
+    mounted() {
+      // Get auto-close timeout
+      const closeAfter = parseInt(this.el.dataset.closeAfter, 10) || 0;
+      
+      // Slide in the notification
+      this.el.style.transform = 'translateX(0)';
+      this.el.style.opacity = '1';
+      
+      // Auto-close if needed
+      if (closeAfter > 0) {
+        this.timer = setTimeout(() => {
+          this.hide();
+        }, closeAfter);
+      }
+    },
+    
+    hide() {
+      // Slide out animation
+      this.el.style.transform = 'translateX(400px)';
+      this.el.style.opacity = '0';
+      
+      // Remove from DOM after animation
+      setTimeout(() => {
+        this.el.style.display = 'none';
+      }, 300);
+    },
+    
+    updated() {
+      // If the element was hidden and is being shown again
+      if (this.el.style.display === 'none' && this.el.style.opacity === '0') {
+        this.el.style.display = '';
+        
+        // Force a reflow before adding the transition back
+        this.el.offsetHeight;
+        
+        // Show the notification again
+        this.el.style.transform = 'translateX(0)';
+        this.el.style.opacity = '1';
+        
+        // Reset auto-close timer if needed
+        const closeAfter = parseInt(this.el.dataset.closeAfter, 10) || 0;
+        if (closeAfter > 0) {
+          clearTimeout(this.timer);
+          this.timer = setTimeout(() => {
+            this.hide();
+          }, closeAfter);
+        }
+      }
+    },
+    
+    destroyed() {
+      if (this.timer) {
+        clearTimeout(this.timer);
+      }
+    }
+  },
+
+  AutoHideNotification: {
+    mounted() {
+      const timeout = this.el.dataset.timeout || 5000;
+      if (timeout > 0) {
+        this.timer = setTimeout(() => {
+          this.el.style.opacity = "0";
+          this.el.style.transition = "opacity 0.5s ease-out";
+          
+          // After fade out, hide the element
+          setTimeout(() => {
+            this.el.style.display = "none";
+          }, 500);
+        }, timeout);
+      }
+    },
+    
+    destroyed() {
+      if (this.timer) {
+        clearTimeout(this.timer);
+      }
+    }
+  },
   
   ColorPicker: {
     mounted() {
