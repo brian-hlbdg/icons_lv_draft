@@ -124,6 +124,39 @@ const Hooks = {
       }
     }
   },
+
+  FileInputHook: {
+    mounted() {
+      // Handle click events sent from the server
+      window.addEventListener('phx:js-exec', (e) => {
+        const { to, attr } = e.detail;
+        if (to === '#file-input' && attr === 'data-click') {
+          this.el.click();
+        }
+      });
+
+      // Initialize by setting the proper upload listener
+      this.handleFileInputChange = (event) => {
+        const files = event.target.files;
+        if (files.length > 0) {
+          // The LiveView uploader will handle the actual upload
+          // but we need to dispatch a custom event to trigger any UI updates
+          this.el.dispatchEvent(new CustomEvent('files-selected', {
+            bubbles: true,
+            detail: { count: files.length }
+          }));
+        }
+      };
+      
+      this.el.addEventListener('change', this.handleFileInputChange);
+    },
+    
+    destroyed() {
+      if (this.handleFileInputChange) {
+        this.el.removeEventListener('change', this.handleFileInputChange);
+      }
+    }
+  },
   
   ColorPicker: {
     mounted() {
