@@ -24,6 +24,10 @@ import topbar from "../vendor/topbar"
 
 // Define custom hooks
 const Hooks = {
+  SVGUploadZone: SVGAnalyzerHooks.SVGUploadZone,
+  SVGDownloader: SVGAnalyzerHooks.SVGDownloader,
+  SVGAnalyzer: SVGAnalyzerHooks.SVGAnalyzer,
+
   CopyToClipboard: {
     mounted() {
       this.el.addEventListener("click", () => {
@@ -245,6 +249,186 @@ const Hooks = {
     }
   }
 };
+
+// Place this file at assets/js/svg_analyzer_hooks.js
+const SVGAnalyzerHooks = {
+  SVGUploadZone: {
+    mounted() {
+      console.log("SVGUploadZone hook mounted on", this.el.id);
+      
+      // Get the container ID from the dropzone ID
+      const containerId = this.el.id.replace('-dropzone', '');
+      
+      // Find the file input and button inside the dropzone's parent container
+      const fileInput = document.getElementById(`${containerId}-input`);
+      const uploadButton = document.getElementById(`${containerId}-button`);
+      
+      if (!fileInput) {
+        console.error(`Could not find file input with ID: ${containerId}-input`);
+        return;
+      }
+      
+      if (!uploadButton) {
+        console.error(`Could not find upload button with ID: ${containerId}-button`);
+      } else {
+        // Add click handler for the button
+        uploadButton.addEventListener('click', (e) => {
+          e.preventDefault();
+          console.log("Upload button clicked, triggering file input click");
+          fileInput.click();
+        });
+      }
+      
+      // Handle drag events on the dropzone
+      const dropZone = this.el;
+      
+      // Handle drag events
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log(`Drag event: ${eventName}`);
+        }, false);
+      });
+      
+      // Highlight drop zone when item is dragged over it
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+          console.log('Highlighting dropzone');
+          dropZone.classList.add('border-blue-500', 'bg-blue-50');
+        }, false);
+      });
+      
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+          console.log('Removing highlight from dropzone');
+          dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+        }, false);
+      });
+      
+      // Handle dropped files
+      dropZone.addEventListener('drop', (e) => {
+        console.log('File dropped');
+        const files = e.dataTransfer.files;
+        
+        if (files.length > 0) {
+          console.log(`Dropped ${files.length} files, first file:`, files[0].name);
+          
+          // Set the file to the input element
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(files[0]);
+          fileInput.files = dataTransfer.files;
+          
+          // Trigger change event
+          console.log('Dispatching change event on file input');
+          fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+      
+      // Also log when the file input changes
+      fileInput.addEventListener('change', () => {
+        console.log('File input changed:', fileInput.files.length ? fileInput.files[0].name : 'No files');
+      });
+    }
+  },
+  
+  SVGDownloader: {
+    mounted() {
+      console.log("SVGDownloader hook mounted on", this.el.id);
+      
+      // Listen for download events from LiveView
+      this.handleEvent("download-svg", ({ content, filename }) => {
+        console.log(`Downloading SVG as ${filename}`);
+        
+        // Create a blob from the SVG content
+        const blob = new Blob([content], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        
+        // Create a temporary link and trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename || 'standardized.svg';
+        document.body.appendChild(link);
+        link.click();
+        
+        // Clean up
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          document.body.removeChild(link);
+        }, 100);
+      });
+      
+      // Listen for copy events
+      this.handleEvent("copy-to-clipboard", ({ content }) => {
+        console.log('Copying SVG to clipboard');
+        
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(content)
+            .then(() => {
+              this.showNotification('SVG copied to clipboard!', 'success');
+            })
+            .catch(err => {
+              console.error('Failed to copy SVG:', err);
+              this.showNotification('Failed to copy SVG', 'error');
+            });
+        } else {
+          // Fallback for browsers without clipboard API
+          const textarea = document.createElement('textarea');
+          textarea.value = content;
+          textarea.style.position = 'fixed';  // Avoid scrolling to bottom
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          
+          try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+              this.showNotification('SVG copied to clipboard!', 'success');
+            } else {
+              this.showNotification('Failed to copy SVG', 'error');
+            }
+          } catch (err) {
+            console.error('Failed to copy SVG:', err);
+            this.showNotification('Failed to copy SVG', 'error');
+          }
+          
+          document.body.removeChild(textarea);
+        }
+      });
+    },
+    
+    showNotification(message, type = 'success') {
+      // Create notification element
+      const notification = document.createElement('div');
+      notification.className = 'fixed bottom-4 right-4 px-6 py-3 rounded-md text-white transition transform duration-300 ease-in-out translate-y-full opacity-0';
+      notification.style.zIndex = '50';
+      
+      if (type === 'success') {
+        notification.classList.add('bg-green-500');
+      } else {
+        notification.classList.add('bg-red-500');
+      }
+      
+      notification.textContent = message;
+      document.body.appendChild(notification);
+      
+      // Animate in
+      setTimeout(() => {
+        notification.classList.remove('translate-y-full', 'opacity-0');
+      }, 10);
+      
+      // Animate out and remove
+      setTimeout(() => {
+        notification.classList.add('translate-y-full', 'opacity-0');
+        setTimeout(() => {
+          document.body.removeChild(notification);
+        }, 300);
+      }, 3000);
+    }
+  }
+};
+
+export default SVGAnalyzerHooks;
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 let liveSocket = new LiveSocket("/live", Socket, {

@@ -62,7 +62,8 @@ defmodule IconsLvDraft.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:ex_doc, "~> 0.29", only: :dev, runtime: false},
-      {:bandit, "~> 1.2"}
+      {:bandit, "~> 1.2"},
+      {:sweet_xml, "~> 0.7.3"}, # For XML/SVG parsing
     ]
   end
 

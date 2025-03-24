@@ -21,6 +21,7 @@ defmodule IconsLvDraftWeb.Router do
     live "/all", IconGalleryLive, :all
     live "/category/:category", IconGalleryLive, :category
     live "/upload", IconUploadLive, :index
+    live "/svg-analyzer", SVGAnalyzerLive, :index # SVG Analyzer
   end
 
   # Other scopes may use custom stacks.
