@@ -4,14 +4,6 @@ defmodule IconsLvDraftWeb.Components.SVGUpload do
   import IconsLvDraftWeb.CoreComponents
   alias Phoenix.LiveView.JS
 
-  @doc """
-  Renders an SVG upload component.
-
-  ## Examples
-
-      <.svg_upload upload={@uploads.svg} />
-
-  """
   attr :id, :string, required: true
   attr :upload, :map, required: true
   attr :max_file_size, :integer, default: 5 * 1_024 * 1_024  # 5 MB default
@@ -32,9 +24,9 @@ defmodule IconsLvDraftWeb.Components.SVGUpload do
         </div>
 
         <.form for={%{}} phx-change="validate-upload" phx-submit="process-svg" class="mt-4">
-          <!-- Key change: Make the file input accessible via data attribute -->
-          <div>
-            <.live_file_input upload={@upload} class="hidden" id={"#{@id}-input"} />
+          <div class="file-input-container">
+            <!-- Add extra classes to make it easier to find -->
+            <.live_file_input upload={@upload} class="hidden live-file-input" id={"#{@id}-input"} />
           </div>
 
           <div class="w-full flex justify-center">

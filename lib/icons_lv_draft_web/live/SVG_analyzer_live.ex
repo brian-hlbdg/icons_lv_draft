@@ -1,7 +1,6 @@
 defmodule IconsLvDraftWeb.SVGAnalyzerLive do
   use IconsLvDraftWeb, :live_view
   alias IconsLvDraft.SVGAnalyzer
-  alias IconsLvDraft.SVGPathConverter
   alias IconsLvDraftWeb.Components.SVGUpload
 
   @impl true
@@ -37,6 +36,13 @@ defmodule IconsLvDraftWeb.SVGAnalyzerLive do
     {:noreply, socket}
   end
 
+  # Add a direct button click handler to open file dialog
+  @impl true
+  def handle_event("select-file", _params, socket) do
+    # This will trigger a JS command to click the file input
+    {:noreply, push_event(socket, "js-exec", %{to: "#svg-upload-input", attr: "data-click"})}
+  end
+
   @impl true
   def handle_event("download-standardized", _params, socket) do
     case socket.assigns.standardized do
@@ -66,57 +72,48 @@ defmodule IconsLvDraftWeb.SVGAnalyzerLive do
   # Process the uploaded file when it completes
   defp handle_progress(:svg, entry, socket) do
     if entry.done? do
-      # Consume the uploaded entry
-      consumed_socket = consume_uploaded_entry(socket, entry, fn %{path: path} ->
-        # Read the SVG file
-        case File.read(path) do
-          {:ok, svg_content} ->
-            # Analyze the SVG
-            analysis = SVGAnalyzer.analyze_svg(svg_content)
-            # Standardize the SVG
-            standardized = SVGAnalyzer.standardize_svg(svg_content)
+      temp_path = consume_uploaded_entry(
+        socket,
+        entry,
+        &(&1.path)
+      )
 
-            # Update socket with analysis and standardized SVG
-            {:ok, %{
-              svg_data: %{
-                filename: entry.client_name,
-                content: svg_content,
-                size: byte_size(svg_content)
-              },
-              analysis: analysis,
-              standardized: standardized
-            }}
+      # Read the SVG file directly
+      case File.read(temp_path) do
+        {:ok, svg_content} ->
+          # Analyze the SVG
+          analysis = SVGAnalyzer.analyze_svg(svg_content)
+          # Standardize the SVG
+          standardized = SVGAnalyzer.standardize_svg(svg_content)
 
-          {:error, reason} ->
-            # Handle file read error
-            {:ok, %{
-              error: "Failed to read SVG file: #{reason}"
-            }}
-        end
-      end)
+          # Update the socket with all data
+          socket = socket
+            |> assign(:svg_data, %{
+              filename: entry.client_name,
+              content: svg_content,
+              size: byte_size(svg_content)
+            })
+            |> assign(:analysis, analysis)
+            |> assign(:standardized, standardized)
 
-      socket = case consumed_socket.assigns do
-        %{error: error} ->
-          socket
-          |> put_flash(:error, error)
-          |> assign(:svg_data, nil)
-          |> assign(:analysis, nil)
-          |> assign(:standardized, nil)
+          {:noreply, socket}
 
-        %{svg_data: svg_data, analysis: analysis, standardized: standardized} ->
-          socket
-          |> assign(:svg_data, svg_data)
-          |> assign(:analysis, analysis)
-          |> assign(:standardized, standardized)
+        {:error, reason} ->
+          socket = socket
+            |> put_flash(:error, "Failed to read SVG file: #{reason}")
+            |> assign(:svg_data, nil)
+            |> assign(:analysis, nil)
+            |> assign(:standardized, nil)
+
+          {:noreply, socket}
       end
-
-      {:noreply, socket}
     else
       {:noreply, socket}
     end
   end
 
   @impl true
+  @spec render(any()) :: Phoenix.LiveView.Rendered.t()
   def render(assigns) do
     ~H"""
     <div class="container mx-auto py-8 px-4" id="svg-analyzer-container" phx-hook="SVGDownloader">
@@ -138,6 +135,17 @@ defmodule IconsLvDraftWeb.SVGAnalyzerLive do
           </div>
           <div class="p-6">
             <SVGUpload.svg_upload id="svg-upload" upload={@uploads.svg} />
+
+            <!-- Add a direct file select button as backup -->
+            <div class="mt-4 text-center">
+              <p class="text-sm text-gray-500">If the upload button doesn't work, try this:</p>
+              <button
+                phx-click="select-file"
+                class="mt-2 inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Alternative Upload Button
+              </button>
+            </div>
           </div>
         </div>
 
