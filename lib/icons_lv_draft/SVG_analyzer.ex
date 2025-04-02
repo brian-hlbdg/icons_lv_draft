@@ -27,8 +27,6 @@ defmodule IconsLvDraft.SVGAnalyzer do
   def analyze_svg(svg_content) when is_binary(svg_content) do
     # Parse the SVG using SweetXml
     try do
-      import SweetXml, only: [sigil_x: 2, xpath: 2, xpath: 3]
-
       # Count elements
       element_counts = %{
         "svg" => count_elements(svg_content, "svg"),
@@ -157,7 +155,7 @@ defmodule IconsLvDraft.SVGAnalyzer do
     end
   end
 
-  defp identify_svg_issues(svg_content, element_counts, svg_attrs) do
+  defp identify_svg_issues(_svg_content, element_counts, svg_attrs) do
     issues = []
 
     # Check for missing viewBox
@@ -172,7 +170,7 @@ defmodule IconsLvDraft.SVGAnalyzer do
       width = svg_attrs["width"]
       height = svg_attrs["height"]
 
-      if String.contains?(width, "px") || String.contains?(height, "px") do
+      if String.contains?(width || "", "px") || String.contains?(height || "", "px") do
         issues ++ ["Fixed pixel dimensions (use relative units or viewBox only)"]
       else
         issues
@@ -211,115 +209,200 @@ defmodule IconsLvDraft.SVGAnalyzer do
     end
   end
 
-  # Below are the main processing functions
-
+  # Process style elements
   defp process_style_elements(svg_content) do
-    # This would need a proper CSS parser and XML parser to do correctly
-    # Simplified for demonstration
-    has_style = Regex.match?(~r/<style[^>]*>.*?<\/style>/s, svg_content)
+    # Check if there are style elements
+    style_pattern = ~r/<style[^>]*>(.*?)<\/style>/s
+    styles = Regex.scan(style_pattern, svg_content)
 
-    if has_style do
-      # For now, just note the change but don't implement it (would need full CSS parsing)
-      {svg_content, ["Detected style elements, recommend converting to inline styles"]}
-    else
+    if Enum.empty?(styles) do
       {svg_content, []}
+    else
+      # In a real implementation, we would parse the CSS and apply it inline
+      # For now, just note the style elements
+      {svg_content, ["Detected #{length(styles)} style elements, consider converting to inline styles"]}
     end
   end
 
+  # Process groups
   defp process_groups(svg_content) do
-    # Count groups
-    g_count = count_elements(svg_content, "g")
+    # Check if there are group elements
+    group_count = Regex.scan(~r/<g[^>]*>/i, svg_content) |> length()
 
-    if g_count > 0 do
-      # In a real implementation, would parse XML and process groups
-      # For demo, just flagging them
-      {svg_content, ["Detected #{g_count} group elements, recommend flattening where possible"]}
-    else
+    if group_count == 0 do
       {svg_content, []}
+    else
+      # In a real implementation, we would flatten groups
+      # For now, just note the group elements
+      {svg_content, ["Detected #{group_count} group elements, consider flattening where possible"]}
     end
   end
 
+  # Convert shapes to paths
   defp convert_shapes_to_paths(svg_content) do
     changes = []
 
-    # Check for rect elements
-    rect_count = count_elements(svg_content, "rect")
-    changes = if rect_count > 0 do
-      changes ++ ["Detected #{rect_count} rect elements, could be converted to paths"]
-    else
-      changes
-    end
+    # Convert rect elements
+    {svg_content, rect_count} = convert_rect_elements(svg_content)
+    changes = if rect_count > 0, do: changes ++ ["Converted #{rect_count} rect elements to paths"], else: changes
 
-    # Check for polygon elements
-    polygon_count = count_elements(svg_content, "polygon")
-    changes = if polygon_count > 0 do
-      changes ++ ["Detected #{polygon_count} polygon elements, could be converted to paths"]
-    else
-      changes
-    end
+    # Convert circle elements
+    {svg_content, circle_count} = convert_circle_elements(svg_content)
+    changes = if circle_count > 0, do: changes ++ ["Converted #{circle_count} circle elements to paths"], else: changes
 
-    # Check for circle elements
-    circle_count = count_elements(svg_content, "circle")
-    changes = if circle_count > 0 do
-      changes ++ ["Detected #{circle_count} circle elements, could be converted to paths"]
-    else
-      changes
-    end
-
-    # In a real implementation, we would actually convert these elements
-    # For demonstration purposes, we're just reporting them
+    # Convert polygon elements
+    {svg_content, polygon_count} = convert_polygon_elements(svg_content)
+    changes = if polygon_count > 0, do: changes ++ ["Converted #{polygon_count} polygon elements to paths"], else: changes
 
     {svg_content, changes}
   end
 
+  # Convert rect elements to path
+  defp convert_rect_elements(svg_content) do
+    rect_pattern = ~r/<rect([^>]*)\/?>(?:<\/rect>)?/i
+    rects = Regex.scan(rect_pattern, svg_content, capture: :all)
+
+    if Enum.empty?(rects) do
+      {svg_content, 0}
+    else
+      new_svg = Enum.reduce(rects, svg_content, fn [full_match, attrs], content ->
+        # Parse attributes
+        attrs_map = parse_attrs(attrs)
+
+        # Convert to path
+        path_data = IconsLvDraft.SVGPathConverter.rect_to_path(attrs_map)
+
+        # Create new path element, preserving other attributes
+        preserved_attrs = preserve_attrs(attrs, ~w(x y width height rx ry))
+        new_element = "<path d=\"#{path_data}\"#{preserved_attrs}/>"
+
+        # Replace in content
+        String.replace(content, full_match, new_element, global: false)
+      end)
+
+      {new_svg, length(rects)}
+    end
+  end
+
+  # Convert circle elements to path
+  defp convert_circle_elements(svg_content) do
+    circle_pattern = ~r/<circle([^>]*)\/?>(?:<\/circle>)?/i
+    circles = Regex.scan(circle_pattern, svg_content, capture: :all)
+
+    if Enum.empty?(circles) do
+      {svg_content, 0}
+    else
+      new_svg = Enum.reduce(circles, svg_content, fn [full_match, attrs], content ->
+        # Parse attributes
+        attrs_map = parse_attrs(attrs)
+
+        # Convert to path
+        path_data = IconsLvDraft.SVGPathConverter.circle_to_path(attrs_map)
+
+        # Create new path element, preserving other attributes
+        preserved_attrs = preserve_attrs(attrs, ~w(cx cy r))
+        new_element = "<path d=\"#{path_data}\"#{preserved_attrs}/>"
+
+        # Replace in content
+        String.replace(content, full_match, new_element, global: false)
+      end)
+
+      {new_svg, length(circles)}
+    end
+  end
+
+  # Convert polygon elements to path
+  defp convert_polygon_elements(svg_content) do
+    polygon_pattern = ~r/<polygon([^>]*)\/?>(?:<\/polygon>)?/i
+    polygons = Regex.scan(polygon_pattern, svg_content, capture: :all)
+
+    if Enum.empty?(polygons) do
+      {svg_content, 0}
+    else
+      new_svg = Enum.reduce(polygons, svg_content, fn [full_match, attrs], content ->
+        # Parse attributes
+        attrs_map = parse_attrs(attrs)
+
+        # Convert to path
+        path_data = IconsLvDraft.SVGPathConverter.polygon_to_path(attrs_map)
+
+        # Create new path element, preserving other attributes
+        preserved_attrs = preserve_attrs(attrs, ~w(points))
+        new_element = "<path d=\"#{path_data}\"#{preserved_attrs}/>"
+
+        # Replace in content
+        String.replace(content, full_match, new_element, global: false)
+      end)
+
+      {new_svg, length(polygons)}
+    end
+  end
+
+  # Parse attributes from string
+  defp parse_attrs(attrs_str) do
+    attr_pattern = ~r/\s*([a-zA-Z0-9_\-:]+)=["']([^"']*)["']/
+
+    Regex.scan(attr_pattern, attrs_str)
+    |> Enum.map(fn [_, name, value] -> {name, value} end)
+    |> Enum.into(%{})
+  end
+
+  # Preserve attributes except for specific ones
+  defp preserve_attrs(attrs_str, exclude_attrs) do
+    attr_pattern = ~r/\s*([a-zA-Z0-9_\-:]+)=["']([^"']*)["']/
+
+    Regex.scan(attr_pattern, attrs_str)
+    |> Enum.reject(fn [_, name, _] -> name in exclude_attrs end)
+    |> Enum.map(fn [_, name, value] -> " #{name}=\"#{value}\"" end)
+    |> Enum.join("")
+  end
+
+  # Clean up unnecessary attributes
   defp clean_attributes(svg_content) do
-    # Look for potentially unnecessary attributes
+    # Find elements with IDs
+    id_count = Regex.scan(~r/\sid=["'][^"']*["']/i, svg_content) |> length()
+
+    # Find empty attributes
+    empty_attr_count = Regex.scan(~r/\s[a-zA-Z0-9_\-:]+=[""]["']/i, svg_content) |> length()
+
     changes = []
+    changes = if id_count > 0, do: changes ++ ["Found #{id_count} id attributes, consider removing if not referenced"], else: changes
+    changes = if empty_attr_count > 0, do: changes ++ ["Found #{empty_attr_count} empty attributes, should be removed"], else: changes
 
-    # Check for id attributes
-    id_count = Regex.scan(~r/id=["'][^"']*["']/i, svg_content) |> length()
-    changes = if id_count > 0 do
-      changes ++ ["Found #{id_count} id attributes, consider removing if not referenced"]
-    else
-      changes
-    end
-
-    # Check for empty or default attributes
-    empty_attr_count = Regex.scan(~r/[a-zA-Z0-9_\-:]+=[""]["']/i, svg_content) |> length()
-    changes = if empty_attr_count > 0 do
-      changes ++ ["Found #{empty_attr_count} empty attributes, should be removed"]
-    else
-      changes
-    end
-
-    # In a real implementation, we would actually clean these attributes
-    # For demonstration purposes, we're just reporting them
-
+    # In a real implementation, we would clean up these attributes
+    # For now, just return the content unchanged
     {svg_content, changes}
   end
 
+  # Ensure viewBox is present
   defp ensure_viewbox(svg_content) do
-    svg_attrs = extract_svg_attributes(svg_content)
+    # Check if viewBox is already present
+    has_viewbox = Regex.match?(~r/viewBox=["'][^"']*["']/i, svg_content)
 
-    if Map.has_key?(svg_attrs, "viewBox") do
+    if has_viewbox do
       {svg_content, []}
     else
-      # Check if width and height are available
-      if Map.has_key?(svg_attrs, "width") && Map.has_key?(svg_attrs, "height") do
-        width = parse_dimension(svg_attrs["width"])
-        height = parse_dimension(svg_attrs["height"])
+      # Try to extract width and height from SVG tag
+      width_match = Regex.run(~r/\swidth=["']([^"']*)["']/i, svg_content)
+      height_match = Regex.run(~r/\sheight=["']([^"']*)["']/i, svg_content)
+
+      if width_match && height_match do
+        width_str = Enum.at(width_match, 1)
+        height_str = Enum.at(height_match, 1)
+
+        width = parse_dimension(width_str)
+        height = parse_dimension(height_str)
 
         if width && height do
-          # Add viewBox attribute
+          # Add viewBox attribute to the SVG tag
           viewbox = "0 0 #{width} #{height}"
-          svg_content = Regex.replace(~r/<svg/, svg_content, "<svg viewBox=\"#{viewbox}\"", global: false)
-          {svg_content, ["Added viewBox=\"#{viewbox}\" based on width/height"]}
+          new_svg = Regex.replace(~r/<svg/, svg_content, "<svg viewBox=\"#{viewbox}\"", global: false)
+
+          {new_svg, ["Added viewBox=\"#{viewbox}\" based on width/height"]}
         else
-          # Can't determine viewBox
           {svg_content, ["Missing viewBox and could not determine from dimensions"]}
         end
       else
-        # No width/height to generate viewBox
         {svg_content, ["Missing viewBox attribute and no width/height to generate one"]}
       end
     end
@@ -328,8 +411,16 @@ defmodule IconsLvDraft.SVGAnalyzer do
   defp parse_dimension(dim_str) when is_binary(dim_str) do
     # Extract numeric part from dimension
     case Regex.run(~r/^(\d+(\.\d+)?)/, dim_str) do
-      [_, num, _] -> String.to_float(num)
-      [_, num] -> String.to_integer(num)
+      [_, num, _] ->
+        case Float.parse(num) do
+          {float_val, _} -> float_val
+          :error -> nil
+        end
+      [_, num] ->
+        case Integer.parse(num) do
+          {int_val, _} -> int_val
+          :error -> nil
+        end
       _ -> nil
     end
   rescue

@@ -43,7 +43,7 @@ defmodule IconsLvDraft.MixProject do
       {:phoenix_html, "~> 4.0"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
       {:phoenix_live_view, "~> 0.20.2"},
-      {:floki, ">= 0.30.0", only: :test},
+      {:floki, ">= 0.35.0"},
       {:phoenix_live_dashboard, "~> 0.8.3"},
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
       {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
@@ -63,7 +63,7 @@ defmodule IconsLvDraft.MixProject do
       {:dns_cluster, "~> 0.1.1"},
       {:ex_doc, "~> 0.29", only: :dev, runtime: false},
       {:bandit, "~> 1.2"},
-      {:sweet_xml, "~> 0.7.3"}, # For XML/SVG parsing
+      {:sweet_xml, "~> 0.7.3"}
     ]
   end
 
