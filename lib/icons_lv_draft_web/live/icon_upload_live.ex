@@ -27,7 +27,6 @@ defmodule IconsLvDraftWeb.IconUploadLive do
         max_entries: 1,
         max_file_size: @max_file_size,
         auto_upload: true,
-        reset_on_cancel: false,
         progress: &handle_progress/3)
 
     # Check for flash messages from redirects
@@ -64,22 +63,6 @@ defmodule IconsLvDraftWeb.IconUploadLive do
     {:noreply, assign(socket, selected_category: category)}
   end
 
-  def handle_event("reset-file", _params, socket) do
-    {:noreply, socket
-      |> assign(:svg_data, nil)
-      |> assign(:svg_analysis, nil)
-      |> assign(:standardized, nil)
-      |> assign(:ready_to_upload, false)
-      |> allow_upload(:icon_file,
-        accept: @allowed_extensions,
-        max_entries: 1,
-        max_file_size: @max_file_size,
-        auto_upload: true,
-        reset_on_cancel: false,
-        progress: &handle_progress/3)
-    }
-  end
-
   def handle_event("save", %{"icon" => %{"name" => name}}, socket) do
     # Only proceed if we've analyzed the file and it's ready to upload
     if !socket.assigns.ready_to_upload do
@@ -103,7 +86,7 @@ defmodule IconsLvDraftWeb.IconUploadLive do
         if File.exists?(file_path) do
           {:noreply, assign(socket, upload_error: "An icon with this name already exists in this category")}
         else
-          # Use the standardized version if available, or the original content
+          # Use the standardized version if available
           svg_content = if socket.assigns.standardized do
             socket.assigns.standardized.optimized_svg
           else
@@ -128,18 +111,14 @@ defmodule IconsLvDraftWeb.IconUploadLive do
   end
 
   defp handle_progress(:icon_file, entry, socket) when entry.done? do
-    # Set analyzing state
     socket = assign(socket, :analyzing, true)
 
-    # Use a custom path lookup approach to find the file without consuming it
-    # This uses Phoenix LiveView's internal storage pattern
-    upload_config = socket.assigns.uploads.icon_file
-    path = Path.join(
-      upload_config.tmp_dir,
-      "#{upload_config.ref}-#{entry.ref}-#{entry.client_name}"
-    )
+    # Get the temporary path
+    temp_path = consume_uploaded_entry(socket, entry, fn %{path: path} ->
+      {:ok, path}
+    end)
 
-    case File.read(path) do
+    case File.read(temp_path) do
       {:ok, file_content} ->
         # Analyze the SVG
         analysis = SVGAnalyzer.analyze_svg(file_content)
@@ -158,7 +137,6 @@ defmodule IconsLvDraftWeb.IconUploadLive do
           |> assign(:standardized, standardized)
           |> assign(:analyzing, false)
           |> assign(:ready_to_upload, true)
-          |> assign(:upload_error, nil)  # Clear any previous errors
 
         {:noreply, socket}
 
@@ -254,14 +232,12 @@ defmodule IconsLvDraftWeb.IconUploadLive do
             <div phx-drop-target={@uploads.icon_file.ref} class="space-y-4">
               <.live_file_input upload={@uploads.icon_file} class="hidden" />
 
-              <%= if Enum.empty?(@uploads.icon_file.entries) and !@svg_data do %>
-                <div class="text-center">
-                  <label for={@uploads.icon_file.ref} class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer inline-block">
-                    Select SVG File
-                  </label>
-                  <p class="text-sm text-gray-500 mt-2">or drag and drop your SVG file here</p>
-                </div>
-              <% end %>
+              <div :if={Enum.empty?(@uploads.icon_file.entries)} class="text-center">
+                <label for={@uploads.icon_file.ref} class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 cursor-pointer inline-block">
+                  Select SVG File
+                </label>
+                <p class="text-sm text-gray-500 mt-2">or drag and drop your SVG file here</p>
+              </div>
 
               <%= for entry <- @uploads.icon_file.entries do %>
                 <div class="flex items-center justify-between bg-white p-4 rounded border">
@@ -292,30 +268,6 @@ defmodule IconsLvDraftWeb.IconUploadLive do
                     <%= error_to_string(err) %>
                   </div>
                 <% end %>
-              <% end %>
-
-              <!-- Show file info after analysis if entries become empty -->
-              <%= if Enum.empty?(@uploads.icon_file.entries) and @svg_data do %>
-                <div class="flex items-center justify-between bg-white p-4 rounded border">
-                  <div class="flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <div>
-                      <p class="font-medium"><%= @svg_data.filename %></p>
-                      <p class="text-sm text-gray-500"><%= format_file_size(@svg_data.size) %></p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    phx-click="reset-file"
-                    class="text-red-500 hover:text-red-700"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
               <% end %>
             </div>
           </div>
